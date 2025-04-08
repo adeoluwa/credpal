@@ -1,8 +1,9 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 
 import { LoginDto } from './dto/login.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -17,14 +18,23 @@ export class AuthController {
     };
   }
 
-  @Get('verify')
-  async verifyEmail(@Query('token') token: string) {
-    await this.authService.verifyEmail(token);
+  @Post('verify')
+  async verifyEmail(@Body() verifyDto: VerifyEmailDto) {
+    await this.authService.verifyEmail(verifyDto.email, verifyDto.token);
     return { message: 'Email verified successfully' };
   }
 
   @Post('login')
+  @HttpCode(200)
   async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+    const access_token = await this.authService.login(loginDto);
+
+    return {
+      message: 'Login successful',
+      accessToken: access_token,
+      user: {
+        email: loginDto.email,
+      },
+    };
   }
 }

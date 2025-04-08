@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -7,7 +8,6 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, MoreThan, Not, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 import { User } from '../user/user.entity';
 import { MailService } from '../mail/mail.service';
 import { LoginDto } from './dto/login.dto';
@@ -19,8 +19,16 @@ export class AuthService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     private jwtService: JwtService,
-    private mailService: MailService,
+    private _mailService: MailService,
   ) {}
+
+  /**
+   * The function generates a random six-digit code.
+   * @returns A six-digit random code as a string is being returned.
+   */
+  private generateSixDigitCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
 
   async register(registerDto: RegisterDto): Promise<void> {
     const { email, password } = registerDto;
@@ -33,12 +41,12 @@ export class AuthService {
       throw new UnauthorizedException('Email already in use');
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationToken = this.generateSixDigitCode();
     const verificationTokenHash = await bcrypt.hash(verificationToken, 10);
 
     // Set token expiration (e.g., 1 hour)
-    const tokenExpires = new Date();
-    tokenExpires.setHours(tokenExpires.getHours() + 1);
+    const codeExpires = new Date();
+    codeExpires.setHours(codeExpires.getHours() + 2);
 
     console.log('Token:', verificationToken);
     const user = this.usersRepository.create({
@@ -46,7 +54,7 @@ export class AuthService {
       password: hashedPassword,
       verificationTokenHash,
       isVerified: false,
-      verificationTokenExpires: tokenExpires,
+      verificationTokenExpires: codeExpires,
     });
 
     await this.usersRepository.save(user);
@@ -57,41 +65,37 @@ export class AuthService {
     );
   }
 
-  async verifyEmail(token: string): Promise<void> {
-    const unverifiedUsers = await this.usersRepository.find({
+  async verifyEmail(email: string, token: string): Promise<void> {
+    if (!email || !token) {
+      throw new BadRequestException('Email and token are required');
+    }
+
+    const user = await this.usersRepository.findOne({
       where: {
+        email,
         isVerified: false,
         verificationTokenHash: Not(IsNull()),
         verificationTokenExpires: MoreThan(new Date()),
       },
     });
 
-    let verifiedUser: User | null = null;
-    for (const user of unverifiedUsers) {
-      console.log(
-        'Comparing with user verification token hash:',
-        user.verificationTokenHash,
-      );
-
-      // Compare the plain token with the stored hashed token
-      const tokenIsValid = user.verificationTokenHash
-        ? await bcrypt.compare(token, user.verificationTokenHash)
-        : false;
-
-      if (tokenIsValid) {
-        verifiedUser = user;
-        break;
-      }
-    }
-
-    if (!verifiedUser) {
+    if (!user || !user.verificationTokenHash) {
       throw new NotFoundException('Invalid or expired token');
     }
 
-    // Successfully verified the token
-    console.log(`User ${verifiedUser.email} successfully verified`);
+    const isTokenValid = await bcrypt.compare(
+      token,
+      user.verificationTokenHash,
+    );
 
-    await this.usersRepository.update(verifiedUser.id, {
+    if (!isTokenValid) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    // Successfully verified the token
+    console.log(`User ${user.email} successfully verified`);
+
+    await this.usersRepository.update(user.id, {
       isVerified: true,
       verificationTokenHash: undefined,
       verificationTokenExpires: undefined,
