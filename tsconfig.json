@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS", // Keep CommonJS, as you're using Node.js
+    "target": "ES6", // ES6 is fine for TypeScript
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "outDir": "./dist", // Output compiled files to the "dist" directory
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "moduleResolution": "node" // This resolves modules correctly for Node.js
+  },
+  "include": [
+    "src/**/*" // Make sure the "src" folder is included in the compilation
+  ]
+}
