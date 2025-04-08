@@ -5,9 +5,13 @@ import { WalletService } from './wallet.service';
 import { WalletController } from './wallet.controller';
 import { TransactionModule } from '../transaction/transaction.module';
 import { UserModule } from '../user/user.module';
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
+    PassportModule,
+    JwtModule.register({}),
     TypeOrmModule.forFeature([Wallet]),
     forwardRef(() => UserModule),
     forwardRef(() => TransactionModule),

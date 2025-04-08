@@ -75,3 +75,6 @@ npm run migration:run
 ```bash
 npm run start:dev
 ```
+
+API DOCUMENTATION:
+https://documenter.getpostman.com/view/42830262/2sB2cX7LGs

@@ -11,6 +11,7 @@ export class WalletController {
 
   @Get()
   async getUserWallets(@GetUser() user: User) {
+    console.log(user);
     return this.walletService.getUserWallets(user.id);
   }
 
